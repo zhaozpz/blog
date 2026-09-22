@@ -2,8 +2,8 @@
 export const SITE = {
   title: '笔记',
   author: '赵培卓',
-  // 部署后改成真实域名，例如 https://blog.example.com
-  url: 'https://example.com',
+  // 真实域名（sitemap / RSS 使用）；绑定自定义域名后改之
+  url: 'https://blog-a0v.pages.dev',
   description: '记录技术、工程与思考。',
   postsPerPage: 8,
 };
