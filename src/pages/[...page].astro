@@ -1,0 +1,46 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Pagination from '../components/Pagination.astro';
+import { SITE } from '../consts';
+
+export const getStaticPaths: GetStaticPaths = async ({ paginate }) => {
+  const posts = (await getCollection('blog'))
+    .filter((p) => !p.data.draft)
+    .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+  return paginate(posts, { pageSize: SITE.postsPerPage });
+};
+
+const { page } = Astro.props;
+
+const fmt = new Intl.DateTimeFormat('zh-CN', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+---
+
+<BaseLayout>
+  <main class="container">
+    <div class="page-intro">
+      <h1>{SITE.title}</h1>
+      <p>{SITE.description}</p>
+    </div>
+
+    <ul class="post-list">
+      {
+        page.data.map((post) => (
+          <li>
+            <a class="post-title" href={`/posts/${post.id}/`}>{post.data.title}</a>
+            <time class="post-date" datetime={post.data.pubDate.toISOString()}>
+              {fmt.format(post.data.pubDate)}
+            </time>
+          </li>
+        ))
+      }
+    </ul>
+
+    <Pagination page={page} />
+  </main>
+</BaseLayout>

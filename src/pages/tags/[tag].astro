@@ -1,0 +1,48 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const posts = (await getCollection('blog')).filter((p) => !p.data.draft);
+  const tags = new Set(posts.flatMap((p) => p.data.tags));
+  return [...tags].map((tag) => ({
+    params: { tag: encodeURIComponent(tag) },
+    props: {
+      tag,
+      posts: posts
+        .filter((p) => p.data.tags.includes(tag))
+        .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()),
+    },
+  }));
+};
+
+const { tag, posts } = Astro.props;
+
+const fmt = new Intl.DateTimeFormat('zh-CN', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+---
+
+<BaseLayout title={`标签：${tag}`}>
+  <main class="container">
+    <div class="page-intro">
+      <h1># {tag}</h1>
+      <p>{posts.length} 篇文章 · <a href="/tags">全部标签</a></p>
+    </div>
+    <ul class="post-list">
+      {
+        posts.map((post) => (
+          <li>
+            <a class="post-title" href={`/posts/${post.id}/`}>{post.data.title}</a>
+            <time class="post-date" datetime={post.data.pubDate.toISOString()}>
+              {fmt.format(post.data.pubDate)}
+            </time>
+          </li>
+        ))
+      }
+    </ul>
+  </main>
+</BaseLayout>

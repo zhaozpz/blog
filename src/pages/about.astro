@@ -1,0 +1,24 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE, SOCIAL } from '../consts';
+---
+
+<BaseLayout title="关于">
+  <main class="container">
+    <div class="page-intro">
+      <h1>关于</h1>
+    </div>
+    <article class="prose">
+      <p>你好，我是 {SITE.author}。这里是我的技术博客，记录我在软件工程上的实践与思考。</p>
+      <p>
+        文章主题主要包括编程语言、系统设计、性能优化与工程效率。我尽量让每篇文章都有可运行的代码和明确的结论。
+      </p>
+      <h2>联系我</h2>
+      <ul>
+        {SOCIAL.github && <li>GitHub：<a href={SOCIAL.github} target="_blank" rel="noopener">{SOCIAL.github}</a></li>}
+        {SOCIAL.email && <li>邮箱：<a href={`mailto:${SOCIAL.email}`}>{SOCIAL.email}</a></li>}
+        {SOCIAL.rss && <li>订阅：<a href={SOCIAL.rss}>RSS</a></li>}
+      </ul>
+    </article>
+  </main>
+</BaseLayout>

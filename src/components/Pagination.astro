@@ -1,0 +1,30 @@
+---
+interface Props {
+  page: {
+    url: { prev: string | undefined; next: string | undefined };
+    currentPage: number;
+    lastPage: number;
+  };
+}
+const { page } = Astro.props;
+---
+
+<nav class="pagination" aria-label="分页">
+  {
+    page.url.prev ? (
+      <a href={page.url.prev}>← 上一页</a>
+    ) : (
+      <span aria-hidden="true">← 上一页</span>
+    )
+  }
+  <span>
+    {page.currentPage} / {page.lastPage}
+  </span>
+  {
+    page.url.next ? (
+      <a href={page.url.next}>下一页 →</a>
+    ) : (
+      <span aria-hidden="true">下一页 →</span>
+    )
+  }
+</nav>

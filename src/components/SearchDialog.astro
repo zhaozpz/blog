@@ -1,0 +1,75 @@
+<dialog class="search-dialog" id="search-dialog">
+  <div id="search"></div>
+</dialog>
+
+<script>
+  import { PagefindUI } from '@pagefind/default-ui';
+  import '@pagefind/default-ui/css/ui.css';
+
+  const dialog = document.getElementById('search-dialog') as HTMLDialogElement;
+  let initialized = false;
+
+  function openSearch() {
+    dialog.querySelector('input')?.toggleAttribute('disabled', false);
+    if (!initialized) {
+      // Pagefind 索引在构建产物中；dev 模式下搜索不可用属正常
+      new PagefindUI({
+        element: '#search',
+        showSubResults: true,
+        showImages: false,
+        excerptLength: 12,
+        translations: { placeholder: '搜索文章…', zero_results: '没有找到 “[SEARCH_TERM]”' },
+      });
+      initialized = true;
+    }
+    if (!dialog.open) dialog.showModal();
+    const input = dialog.querySelector('input');
+    // 等 UI 渲染后聚焦
+    setTimeout(() => input?.focus(), 30);
+  }
+
+  document.getElementById('search-open')?.addEventListener('click', openSearch);
+
+  dialog.addEventListener('click', (e) => {
+    // 点击遮罩（dialog 自身）关闭
+    if (e.target === dialog) dialog.close();
+  });
+
+  // Pagefind UI 会拦截 Escape 清空搜索词，导致原生 dialog 无法关闭；
+  // 在捕获阶段手动处理：先清空搜索词，再按一次才关闭。
+  dialog.addEventListener(
+    'keydown',
+    (e) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      const input = dialog.querySelector<HTMLInputElement>('input');
+      if (input?.value) {
+        input.value = '';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.focus();
+      } else {
+        dialog.close();
+      }
+    },
+    true,
+  );
+
+  // 关闭后清空搜索词、禁用输入框（防止 Pagefind 抢焦点），焦点归还触发按钮
+  dialog.addEventListener('close', () => {
+    const input = dialog.querySelector<HTMLInputElement>('input');
+    if (input) {
+      input.value = '';
+      input.disabled = true;
+    }
+    // 等浏览器完成 dialog 关闭后的默认焦点恢复，再把焦点归还触发按钮
+    setTimeout(() => document.getElementById('search-open')?.focus(), 60);
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      openSearch();
+    }
+  });
+</script>
