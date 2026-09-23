@@ -1,4 +1,4 @@
----
+﻿---
 // 在线编辑发布室：/admin
 // 通过 GitHub Contents API 直接读写 src/content/blog/ 下的文章。
 // 令牌（GitHub 细粒度 PAT，仅需 blog 仓库 Contents 读写权限）只保存在浏览器 localStorage。
@@ -86,6 +86,8 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   const REPO = 'zhaozpz/blog';
   const DIR = 'src/content/blog';
   const BRANCH = 'main';
+  // 线上走同域 Worker 代理（国内直连 api.github.com 不稳），本地预览直连
+  const GH = location.hostname === 'localhost' ? 'https://api.github.com' : '/api/gh';
   const $ = (id) => document.getElementById(id)! as HTMLInputElement;
   let TOKEN = localStorage.getItem('gh_token') || '';
   let editing: { name: string; sha: string } | null = null;
@@ -125,7 +127,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   async function loadList() {
     busy(true);
     try {
-      const items = await api(`https://api.github.com/repos/${REPO}/contents/${DIR}?ref=${BRANCH}`);
+      const items = await api(`${GH}/repos/${REPO}/contents/${DIR}?ref=${BRANCH}`);
       const ul = $('list') as unknown as HTMLElement;
       ul.textContent = '';
       for (const it of items.filter((i: any) => i.type === 'file' && /\.mdx?$/.test(i.name))) {
@@ -162,7 +164,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   async function openFile(item: any) {
     busy(true);
     try {
-      const f = await api(`https://api.github.com/repos/${REPO}/contents/${DIR}/${item.name}`);
+      const f = await api(`${GH}/repos/${REPO}/contents/${DIR}/${item.name}`);
       const raw = b64d(f.content);
       const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
       const meta: Record<string, string> = {};
@@ -213,7 +215,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       const body: Record<string, unknown> = { message: `post: ${$('fTitle').value.trim()}`, content: b64e(content), branch: BRANCH };
       if (editing && editing.name === name) body.sha = editing.sha;
       else if (editing) msg('注意：文件名已改变，将创建新文件，原文件保留', true);
-      await api(`https://api.github.com/repos/${REPO}/contents/${DIR}/${name}`, {
+      await api(`${GH}/repos/${REPO}/contents/${DIR}/${name}`, {
         method: 'PUT', body: JSON.stringify(body),
       });
       msg(`已提交到 GitHub ✅ Cloudflare 正在自动构建，约 1 分钟后${(($('fDraft') as HTMLInputElement).checked) ? '（草稿不会显示在线上）' : '上线'}`);
@@ -235,7 +237,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         btn.dataset.armed = ''; btn.textContent = '删除此文';
         busy(true);
         try {
-          await api(`https://api.github.com/repos/${REPO}/contents/${DIR}/${editing.name}`, {
+          await api(`${GH}/repos/${REPO}/contents/${DIR}/${editing.name}`, {
             method: 'DELETE',
             body: JSON.stringify({ message: `post: 删除 ${editing.name}`, sha: editing.sha, branch: BRANCH }),
           });
