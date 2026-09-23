@@ -1,6 +1,6 @@
 // 全站配置：改这一个文件即可
 export const SITE = {
-  title: '笔记',
+  title: '我的博客',
   author: '赵培卓',
   // 真实域名（sitemap / RSS 使用）
   url: 'https://zpz0801.xyz',
