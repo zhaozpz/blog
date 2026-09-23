@@ -2,8 +2,8 @@
 export const SITE = {
   title: '笔记',
   author: '赵培卓',
-  // 真实域名（sitemap / RSS 使用）；绑定自定义域名后改之
-  url: 'https://blog-a0v.pages.dev',
+  // 真实域名（sitemap / RSS 使用）
+  url: 'https://zpz0801.xyz',
   description: '记录技术、工程与思考。',
   postsPerPage: 8,
 };
