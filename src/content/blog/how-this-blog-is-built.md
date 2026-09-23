@@ -3,10 +3,7 @@ title: '这个博客是怎么搭起来的：从零到 zpz0801.xyz'
 description: '一篇完整的搭建复盘：Astro 静态生成、Cloudflare Pages 免费部署、域名迁移、评论系统，以及过程中的坑。'
 pubDate: 2026-09-23
 tags: ['Astro', 'Cloudflare', '博客', '工程化']
-draft: true
 ---
-
-> 草稿：内容尚在整理，发布前请删除本行提示。
 
 前一篇[《用 Astro 搭一个极简静态博客》](/posts/build-a-fast-static-blog/)讲了选型思路，这篇记录完整的落地过程——从空目录到 `zpz0801.xyz` 上线，包括每一步实际做了什么、踩了哪些坑。
 
