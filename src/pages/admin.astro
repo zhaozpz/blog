@@ -34,7 +34,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       <ul class="posts" id="list"></ul>
 
       <h2 id="edTitle" style="font-size:1.1rem">新建文章</h2>
-      <div class="msg" id="msg"></div>
+      <div class="msg" id="msg" hidden></div>
       <div class="row">
         <input id="fTitle" placeholder="文章标题（必填）" />
       </div>
@@ -96,6 +96,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   async function api(url: string, opts: RequestInit = {}): Promise<any> {
     const res = await fetch(url, {
       ...opts,
+      signal: AbortSignal.timeout(15000),
       headers: {
         Authorization: `Bearer ${TOKEN}`,
         Accept: 'application/vnd.github+json',
