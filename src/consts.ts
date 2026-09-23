@@ -10,16 +10,16 @@ export const SITE = {
 
 // 社交链接（留空字符串则不显示）
 export const SOCIAL = {
-  github: 'https://github.com/yourname',
-  email: 'you@example.com',
+  github: 'https://github.com/zhaozpz',
+  email: '2129953296@qq.com',
   rss: '/rss.xml',
 };
 
 // Giscus 评论：需要在 GitHub 创建公开仓库并在 https://giscus.app 生成以下四个值。
 // 全部留空则自动隐藏评论区，不影响其他功能。
 export const GISCUS = {
-  repo: '',
-  repositoryId: '',
-  category: '',
-  categoryId: '',
+  repo: 'zhaozpz/blog',
+  repositoryId: 'R_kgDOUlYF9w',
+  category: 'Announcements',
+  categoryId: 'DIC_kwDOUlYF984DGMqH',
 };
