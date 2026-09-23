@@ -153,6 +153,8 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     const pad = (n: number) => String(n).padStart(2, '0');
     $('fSlug').value = `post-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
     show($('deleteBtn'), false);
+    ($('deleteBtn') as HTMLButtonElement).dataset.armed = '';
+    ($('deleteBtn') as HTMLButtonElement).textContent = '删除此文';
     $('edTitle').textContent = '新建文章';
   }
 
@@ -221,21 +223,27 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   }
 
   async function del() {
-    if (!editing) return;
-    if (!confirm(`确定删除 ${editing.name}？此操作会从仓库移除该文件。`)) return;
-    if (!confirm('再次确认：真的删除？')) return;
-    busy(true);
-    try {
-      await api(`https://api.github.com/repos/${REPO}/contents/${DIR}/${editing.name}`, {
-        method: 'DELETE',
-        body: JSON.stringify({ message: `post: 删除 ${editing.name}`, sha: editing.sha, branch: BRANCH }),
-      });
-      msg('已删除 ✅ 约 1 分钟后线上同步');
-      resetForm();
-      await loadList();
-    } catch (e: any) { msg('删除失败：' + e.message, false); }
-    busy(false);
-  }
+        if (!editing) return;
+        const btn = $('deleteBtn') as HTMLButtonElement;
+        if (btn.dataset.armed !== '1') {
+          btn.dataset.armed = '1';
+          btn.textContent = '⚠ 再点一次确认删除';
+          setTimeout(() => { btn.dataset.armed = ''; btn.textContent = '删除此文'; }, 4000);
+          return;
+        }
+        btn.dataset.armed = ''; btn.textContent = '删除此文';
+        busy(true);
+        try {
+          await api(`https://api.github.com/repos/${REPO}/contents/${DIR}/${editing.name}`, {
+            method: 'DELETE',
+            body: JSON.stringify({ message: `post: 删除 ${editing.name}`, sha: editing.sha, branch: BRANCH }),
+          });
+          msg('已删除 ✅ 约 1 分钟后线上同步');
+          resetForm();
+          await loadList();
+        } catch (e: any) { msg('删除失败：' + e.message, false); }
+        busy(false);
+      }
 
   $('saveToken').onclick = () => {
     TOKEN = ($('token') as HTMLInputElement).value.trim();
