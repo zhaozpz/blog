@@ -1,0 +1,260 @@
+---
+// 在线编辑发布室：/admin
+// 通过 GitHub Contents API 直接读写 src/content/blog/ 下的文章。
+// 令牌（GitHub 细粒度 PAT，仅需 blog 仓库 Contents 读写权限）只保存在浏览器 localStorage。
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="编辑室">
+  <main class="container admin">
+    <h1>📝 编辑室</h1>
+    <p class="sub">直接在网页上编写并发布文章 · 令牌只保存在本机浏览器，不会上传到任何第三方</p>
+
+    <!-- 第一步：令牌 -->
+    <div id="box">
+      <p>首次使用需要一把 GitHub 令牌（只需 blog 仓库的读写权限）。获取方法见桌面《博客使用说明.txt》，或让 AI 助手带你创建。</p>
+      <div class="row">
+        <input id="token" class="wide" type="password" placeholder="粘贴 GitHub 令牌（ghp_ 或 github_pat_ 开头）" />
+      </div>
+      <div class="row">
+        <button id="saveToken" class="primary">保存并进入</button>
+        <span class="sub">令牌仅存于本机浏览器 localStorage</span>
+      </div>
+    </div>
+
+    <!-- 第二步：文章列表 + 编辑器 -->
+    <div id="editor" hidden>
+      <div class="row">
+        <button id="newBtn">＋ 新建文章</button>
+        <button id="refreshBtn">刷新列表</button>
+        <button id="logoutBtn" style="margin-inline-start:auto">清除令牌</button>
+      </div>
+
+      <h2 style="font-size:1.1rem">文章列表</h2>
+      <ul class="posts" id="list"></ul>
+
+      <h2 id="edTitle" style="font-size:1.1rem">新建文章</h2>
+      <div class="msg" id="msg"></div>
+      <div class="row">
+        <input id="fTitle" placeholder="文章标题（必填）" />
+      </div>
+      <div class="row">
+        <input id="fDesc" placeholder="一句话简介（可选）" />
+        <input id="fTags" placeholder="标签，逗号分隔，如：Astro,随笔" />
+      </div>
+      <div class="row">
+        <label>文件名（网址）：<input id="fSlug" placeholder="如 my-note" style="flex:0 1 14rem" /></label>
+        <label class="chk"><input id="fDraft" type="checkbox" /> 存为草稿（线上不可见）</label>
+      </div>
+      <textarea id="fBody" placeholder="正文 Markdown……"></textarea>
+      <div class="row" style="margin-top:.7rem">
+        <button id="publishBtn" class="primary">保存并发布</button>
+        <button id="cancelBtn">取消编辑</button>
+        <button id="deleteBtn" class="danger" hidden>删除此文</button>
+      </div>
+    </div>
+  </main>
+</BaseLayout>
+
+<style>
+  .admin h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  .sub { color: gray; font-size: .9rem; margin-bottom: 1.5rem; }
+  .admin input, .admin textarea, .admin button {
+    font: inherit; border-radius: 8px;
+    border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+    background: transparent; color: inherit; padding: .5rem .7rem;
+  }
+  .admin textarea { width: 100%; min-height: 22rem; resize: vertical; font-family: ui-monospace, Consolas, monospace; }
+  .admin input.wide { width: 100%; }
+  .row { display: flex; gap: .6rem; flex-wrap: wrap; margin-bottom: .7rem; align-items: center; }
+  .row input { flex: 1 1 10rem; }
+  .admin button { cursor: pointer; }
+  .admin button.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .admin button.danger { color: #dc2626; border-color: #dc2626; }
+  .admin button:disabled { opacity: .5; cursor: not-allowed; }
+  ul.posts { list-style: none; padding: 0; margin: 0 0 1.5rem; }
+  ul.posts li { display: flex; align-items: center; gap: .5rem; padding: .35rem 0; border-bottom: 1px dashed color-mix(in srgb, currentColor 15%, transparent); }
+  ul.posts .name { flex: 1; cursor: pointer; word-break: break-all; }
+  ul.posts .name:hover { text-decoration: underline; }
+  .msg { padding: .5rem .8rem; border-radius: 8px; margin: .6rem 0; }
+  .msg.ok { background: rgba(37, 99, 235, .12); }
+  .msg.err { background: rgba(220, 38, 38, .12); color: #dc2626; }
+  label.chk { display: inline-flex; gap: .4rem; align-items: center; }
+</style>
+
+<script>
+  const REPO = 'zhaozpz/blog';
+  const DIR = 'src/content/blog';
+  const BRANCH = 'main';
+  const $ = (id) => document.getElementById(id)! as HTMLInputElement;
+  let TOKEN = localStorage.getItem('gh_token') || '';
+  let editing: { name: string; sha: string } | null = null;
+
+  const b64e = (s: string) => btoa(unescape(encodeURIComponent(s)));
+  const b64d = (s: string) => decodeURIComponent(escape(atob(s.replace(/\n/g, ''))));
+
+  async function api(url: string, opts: RequestInit = {}): Promise<any> {
+    const res = await fetch(url, {
+      ...opts,
+      headers: {
+        Authorization: `Bearer ${TOKEN}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        ...(opts.headers || {}),
+      },
+    });
+    if (!res.ok) {
+      let detail = '';
+      try { detail = (await res.json()).message || ''; } catch {}
+      throw new Error(`HTTP ${res.status} ${detail}`);
+    }
+    return res.json();
+  }
+
+  function show(el: HTMLElement, on = true) { el.hidden = !on; }
+  function msg(text: string, ok = true) {
+    const m = $('msg') as unknown as HTMLElement;
+    m.textContent = text;
+    m.className = `msg ${ok ? 'ok' : 'err'}`;
+    show(m);
+    setTimeout(() => show(m, false), 6000);
+  }
+  const busy = (on: boolean) => { ($('publishBtn') as HTMLButtonElement).disabled = on; ($('refreshBtn') as HTMLButtonElement).disabled = on; ($('newBtn') as HTMLButtonElement).disabled = on; };
+
+  async function loadList() {
+    busy(true);
+    try {
+      const items = await api(`https://api.github.com/repos/${REPO}/contents/${DIR}?ref=${BRANCH}`);
+      const ul = $('list') as unknown as HTMLElement;
+      ul.textContent = '';
+      for (const it of items.filter((i: any) => i.type === 'file' && /\.mdx?$/.test(i.name))) {
+        const li = document.createElement('li');
+        const name = document.createElement('span');
+        name.className = 'name';
+        name.textContent = it.name;
+        name.onclick = () => openFile(it);
+        li.appendChild(name);
+        ul.appendChild(li);
+      }
+      if (!ul.children.length) {
+        const li = document.createElement('li');
+        li.textContent = '（还没有文章）';
+        ul.appendChild(li);
+      }
+    } catch (e: any) { msg('加载列表失败：' + e.message, false); }
+    busy(false);
+  }
+
+  function resetForm() {
+    editing = null;
+    $('fTitle').value = ''; $('fDesc').value = ''; $('fTags').value = '';
+    ($('fBody') as HTMLTextAreaElement).value = ''; ($('fDraft') as HTMLInputElement).checked = false;
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    $('fSlug').value = `post-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
+    show($('deleteBtn'), false);
+    $('edTitle').textContent = '新建文章';
+  }
+
+  async function openFile(item: any) {
+    busy(true);
+    try {
+      const f = await api(`https://api.github.com/repos/${REPO}/contents/${DIR}/${item.name}`);
+      const raw = b64d(f.content);
+      const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+      const meta: Record<string, string> = {};
+      let body = raw;
+      if (m) {
+        body = raw.slice(m[0].length);
+        for (const line of m[1].split(/\r?\n/)) {
+          const kv = line.match(/^(\w+):\s*(.*)$/);
+          if (kv) meta[kv[1]] = kv[2].trim();
+        }
+      }
+      editing = { name: item.name, sha: f.sha };
+      $('edTitle').textContent = '编辑：' + item.name;
+      $('fTitle').value = (meta.title || '').replace(/^['"]|['"]$/g, '');
+      $('fDesc').value = (meta.description || '').replace(/^['"]|['"]$/g, '');
+      $('fTags').value = ((meta.tags || '').match(/[\w\u4e00-\u9fa5]+/g) || []).join(',');
+      ($('fDraft') as HTMLInputElement).checked = meta.draft === 'true';
+      $('fSlug').value = item.name.replace(/\.mdx?$/, '');
+      ($('fBody') as HTMLTextAreaElement).value = body;
+      show($('deleteBtn'));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e: any) { msg('读取失败：' + e.message, false); }
+    busy(false);
+  }
+
+  function buildMarkdown(): { slug: string; content: string } {
+    const title = $('fTitle').value.trim();
+    if (!title) throw new Error('标题不能为空');
+    let slug = $('fSlug').value.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-_\u4e00-\u9fa5]/g, '');
+    if (!slug) slug = 'post';
+    const tags = $('fTags').value.split(/[,，]/).map((t) => t.trim()).filter(Boolean);
+    const today = new Date().toISOString().slice(0, 10);
+    const lines: string[] = ['---', `title: '${title.replace(/'/g, "''")}'`];
+    const desc = $('fDesc').value.trim();
+    if (desc) lines.push(`description: '${desc.replace(/'/g, "''")}'`);
+    lines.push(`pubDate: ${today}`);
+    if (tags.length) lines.push(`tags: [${tags.map((t) => `'${t}'`).join(', ')}]`);
+    if (($('fDraft') as HTMLInputElement).checked) lines.push('draft: true');
+    lines.push('---', '');
+    return { slug, content: lines.join('\n') + '\n' + ($('fBody') as HTMLTextAreaElement).value.replace(/\r\n/g, '\n') };
+  }
+
+  async function publish() {
+    busy(true);
+    try {
+      const { slug, content } = buildMarkdown();
+      const name = slug.endsWith('.md') || slug.endsWith('.mdx') ? slug : slug + '.md';
+      const body: Record<string, unknown> = { message: `post: ${$('fTitle').value.trim()}`, content: b64e(content), branch: BRANCH };
+      if (editing && editing.name === name) body.sha = editing.sha;
+      else if (editing) msg('注意：文件名已改变，将创建新文件，原文件保留', true);
+      await api(`https://api.github.com/repos/${REPO}/contents/${DIR}/${name}`, {
+        method: 'PUT', body: JSON.stringify(body),
+      });
+      msg(`已提交到 GitHub ✅ Cloudflare 正在自动构建，约 1 分钟后${(($('fDraft') as HTMLInputElement).checked) ? '（草稿不会显示在线上）' : '上线'}`);
+      editing = null;
+      await loadList();
+    } catch (e: any) { msg('发布失败：' + e.message, false); }
+    busy(false);
+  }
+
+  async function del() {
+    if (!editing) return;
+    if (!confirm(`确定删除 ${editing.name}？此操作会从仓库移除该文件。`)) return;
+    if (!confirm('再次确认：真的删除？')) return;
+    busy(true);
+    try {
+      await api(`https://api.github.com/repos/${REPO}/contents/${DIR}/${editing.name}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ message: `post: 删除 ${editing.name}`, sha: editing.sha, branch: BRANCH }),
+      });
+      msg('已删除 ✅ 约 1 分钟后线上同步');
+      resetForm();
+      await loadList();
+    } catch (e: any) { msg('删除失败：' + e.message, false); }
+    busy(false);
+  }
+
+  $('saveToken').onclick = () => {
+    TOKEN = ($('token') as HTMLInputElement).value.trim();
+    if (!TOKEN) { alert('请粘贴令牌'); return; }
+    localStorage.setItem('gh_token', TOKEN);
+    enter();
+  };
+  $('logoutBtn').onclick = () => { localStorage.removeItem('gh_token'); location.reload(); };
+  $('newBtn').onclick = () => { resetForm(); show($('msg'), false); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  $('refreshBtn').onclick = loadList;
+  $('publishBtn').onclick = publish;
+  $('deleteBtn').onclick = del;
+  $('cancelBtn').onclick = () => { resetForm(); show($('msg'), false); };
+
+  function enter() {
+    show($('box'), false);
+    show($('editor'));
+    resetForm();
+    loadList();
+  }
+  if (TOKEN) enter(); else show($('box'));
+</script>
