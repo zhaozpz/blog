@@ -199,7 +199,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     const today = new Date().toISOString().slice(0, 10);
     const lines: string[] = ['---', `title: '${title.replace(/'/g, "''")}'`];
     const desc = $('fDesc').value.trim();
-    if (desc) lines.push(`description: '${desc.replace(/'/g, "''")}'`);
+    lines.push(`description: '${desc.replace(/'/g, "''")}'`);
     lines.push(`pubDate: ${today}`);
     if (tags.length) lines.push(`tags: [${tags.map((t) => `'${t}'`).join(', ')}]`);
     if (($('fDraft') as HTMLInputElement).checked) lines.push('draft: true');
